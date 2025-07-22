@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오목 게임 ⚪⚫</title>
+    <!-- Tailwind CSS CDN을 사용하여 스타일링을 간편하게 합니다. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Google Fonts - Inter를 사용하여 깔끔한 폰트를 적용합니다. */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #2d3748; /* 어두운 배경 */
+            color: #e2e8f0; /* 밝은 텍스트 색상 */
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #a0aec0;
+        }
+
+        /* 게임 컨테이너 */
+        #game-container {
+            background-color: #4a5568;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            max-width: 100%; /* 반응형을 위해 최대 너비 설정 */
+        }
+
+        /* 캔버스 스타일 (오목판) */
+        #omok-board-canvas {
+            background-color: #d2b48c; /* 오목판 색상 (나무색) */
+            border: 2px solid #8b4513; /* 테두리 */
+            border-radius: 4px;
+            touch-action: none; /* 터치 이벤트 기본 동작 방지 */
+        }
+
+        /* 게임 정보 및 컨트롤 패널 */
+        .game-info-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .player-info {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .player-info span {
+            padding: 5px 10px;
+            border-radius: 8px;
+            background-color: #63b3ed;
+            color: white;
+        }
+
+        .player-info .current-player {
+            background-color: #48bb78; /* 현재 플레이어 강조 */
+            box-shadow: 0 0 8px #48bb78;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap; /* 작은 화면에서 버튼 줄바꿈 */
+            justify-content: center;
+        }
+
+        .control-button {
+            padding: 10px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .control-button.new-game {
+            background-color: #ecc94b; /* 노란색 */
+            color: #2d3748;
+        }
+        .control-button.new-game:hover { background-color: #d69e2e; }
+
+        .control-button.resign {
+            background-color: #f56565; /* 빨간색 */
+            color: white;
+        }
+        .control-button.resign:hover { background-color: #e53e3e; }
+
+        /* 모달 스타일 */
+        #custom-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        #custom-modal.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #custom-modal .modal-content {
+            background-color: #2d3748;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 2px solid #4a5568;
+        }
+
+        #custom-modal .modal-message {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #e2e8f0;
+            margin-bottom: 25px;
+        }
+
+        #custom-modal .modal-button {
+            padding: 12px 25px;
+            background-color: #63b3ed;
+            color: white;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        #custom-modal .modal-button:hover {
+            background-color: #4299e1;
+            transform: translateY(-1px);
+        }
+
+        /* 모바일 반응형 */
+        @media (max-width: 600px) {
+            #game-container {
+                padding: 15px;
+                gap: 15px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            .player-info {
+                font-size: 1em;
+            }
+            .control-button {
+                padding: 8px 15px;
+                font-size: 0.9em;
+            }
+            #custom-modal .modal-message {
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-800 text-gray-100 flex flex-col items-center justify-center min-h-screen p-5">
+    <h1 class="text-4xl font-extrabold mb-8">오목 게임 ⚪⚫</h1>
+
+    <div id="game-container">
+        <!-- 게임 정보 -->
+        <div class="game-info-panel">
+            <div class="player-info">
+                <span id="black-player-info" class="p-2 rounded-lg bg-gray-700 text-white">흑돌</span>
+                <span id="current-player-display" class="p-2 rounded-lg bg-green-500 text-white current-player">현재: 흑</span>
+                <span id="white-player-info" class="p-2 rounded-lg bg-gray-700 text-white">백돌 (AI)</span>
+            </div>
+            <p id="game-status" class="text-lg font-semibold text-yellow-300">게임 시작!</p>
+        </div>
+
+        <!-- 오목판 캔버스 -->
+        <canvas id="omok-board-canvas"></canvas>
+
+        <!-- 컨트롤 버튼 -->
+        <div class="controls">
+            <button id="new-game-button" class="control-button new-game">새 게임</button>
+            <button id="resign-button" class="control-button resign">기권</button>
+        </div>
+    </div>
+
+    <!-- 커스텀 알림/확인 모달 -->
+    <div id="custom-modal" class="hidden">
+        <div class="modal-content">
+            <p id="modal-message" class="modal-message"></p>
+            <button id="modal-ok-button" class="modal-button">확인</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM 요소 가져오기
+        const canvas = document.getElementById('omok-board-canvas');
+        const ctx = canvas.getContext('2d');
+        const currentPlayerDisplay = document.getElementById('current-player-display');
+        const gameStatusDisplay = document.getElementById('game-status');
+        const newGameButton = document.getElementById('new-game-button');
+        const resignButton = document.getElementById('resign-button');
+
+        // 모달 관련 DOM 요소
+        const customModal = document.getElementById('custom-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalOkButton = document.getElementById('modal-ok-button');
+
+        // 게임 설정
+        const BOARD_SIZE = 15; // 15x15 오목판
+        const CELL_SIZE = 35; // 각 칸의 크기 (픽셀)
+        const BOARD_PADDING = CELL_SIZE / 2; // 오목판 테두리 여백
+        const CANVAS_SIZE = BOARD_SIZE * CELL_SIZE + BOARD_PADDING * 2;
+        const AI_MOVE_DELAY = 700; // AI가 수를 두기 전 딜레이 (ms)
+
+        // 게임 상태 변수
+        let board = []; // 0: 빈 칸, 1: 흑돌, 2: 백돌
+        let currentPlayer = 1; // 1: 흑 (Human), 2: 백 (AI)
+        let gameOver = false;
+
+        // 캔버스 크기 설정
+        canvas.width = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE;
+
+        // AI 평가를 위한 상수
+        const WIN_SCORE = 1000000; // 즉시 승리
+        const BLOCK_WIN_SCORE = 500000; // 상대방의 즉시 승리 방어
+        const OPEN_FOUR_SCORE = 10000; // 열린 넷 (자신)
+        const BLOCK_OPEN_FOUR_SCORE = 9000; // 상대방의 열린 넷 방어
+        const CLOSED_FOUR_SCORE = 1000; // 닫힌 넷 (자신)
+        const OPEN_THREE_SCORE = 100; // 열린 셋 (자신)
+        const BLOCK_OPEN_THREE_SCORE = 90; // 상대방의 열린 셋 방어
+        const CLOSED_THREE_SCORE = 10; // 닫힌 셋 (자신)
+        const OPEN_TWO_SCORE = 1; // 열린 둘 (자신)
+        const CENTER_BIAS = 0.5; // 중앙에 가까운 수에 대한 가중치
+
+        // 오목 패턴 확인을 위한 방향
+        const OMOK_DIRECTIONS = [
+            [0, 1],   // 수평 (오른쪽)
+            [1, 0],   // 수직 (아래)
+            [1, 1],   // 대각선 (오른쪽 아래)
+            [1, -1]   // 대각선 (왼쪽 아래)
+        ];
+
+        /**
+         * 커스텀 알림/확인 모달을 표시합니다.
+         * @param {string} message - 모달에 표시할 메시지.
+         * @param {function} onOk - '확인' 버튼 클릭 시 실행될 콜백 함수.
+         */
+        function showCustomModal(message, onOk) {
+            modalMessage.textContent = message;
+            customModal.classList.add('visible');
+            modalOkButton.onclick = () => {
+                customModal.classList.remove('visible');
+                if (onOk) onOk();
+            };
+        }
+
+        /**
+         * 게임을 초기화하고 새 게임을 시작합니다.
+         */
+        function initializeGame() {
+            board = Array(BOARD_SIZE).fill(0).map(() => Array(BOARD_SIZE).fill(0));
+            currentPlayer = 1; // 흑돌부터 시작
+            gameOver = false;
+
+            updateDisplay();
+            drawBoard();
+            gameStatusDisplay.textContent = '게임 시작! 흑돌부터 두세요.';
+            showCustomModal('새 게임이 시작되었습니다! 흑돌부터 시작합니다.', null);
+        }
+
+        /**
+         * 오목판을 그립니다.
+         */
+        function drawBoard() {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE); // 캔버스 초기화
+
+            // 오목판 배경색
+            ctx.fillStyle = '#d2b48c';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            // 격자선 그리기
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                // 수직선
+                ctx.beginPath();
+                ctx.moveTo(BOARD_PADDING + i * CELL_SIZE, BOARD_PADDING);
+                ctx.lineTo(BOARD_PADDING + i * CELL_SIZE, CANVAS_SIZE - BOARD_PADDING);
+                ctx.stroke();
+                // 수평선
+                ctx.beginPath();
+                ctx.moveTo(BOARD_PADDING, BOARD_PADDING + i * CELL_SIZE);
+                ctx.lineTo(CANVAS_SIZE - BOARD_PADDING, BOARD_PADDING + i * CELL_SIZE);
+                ctx.stroke();
+            }
+
+            // 화점 (Star Points) 그리기 (15x15 오목판의 경우)
+            const hoshiPoints = [
+                [3, 3], [3, 7], [3, 11],
+                [7, 3], [7, 7], [7, 11],
+                [11, 3], [11, 7], [11, 11]
+            ];
+
+            hoshiPoints.forEach(([r, c]) => {
+                const hoshiX = BOARD_PADDING + c * CELL_SIZE;
+                const hoshiY = BOARD_PADDING + r * CELL_SIZE;
+                drawHoshi(hoshiX, hoshiY);
+            });
+
+            // 돌 그리기
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === 1) { // 흑돌
+                        drawStone(r, c, 'black');
+                    } else if (board[r][c] === 2) { // 백돌
+                        drawStone(r, c, 'white');
+                    }
+                }
+            }
+        }
+
+        /**
+         * 화점을 그립니다.
+         * @param {number} x - 화점의 X 좌표.
+         * @param {number} y - 화점의 Y 좌표.
+         */
+        function drawHoshi(x, y) {
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2); // 반지름 4px의 원
+            ctx.fill();
+        }
+
+        /**
+         * 바둑돌을 그립니다.
+         * @param {number} row - 돌이 놓일 행.
+         * @param {number} col - 돌이 놓일 열.
+         * @param {string} color - 돌의 색상 ('black' 또는 'white').
+         */
+        function drawStone(row, col, color) {
+            const x = BOARD_PADDING + col * CELL_SIZE;
+            const y = BOARD_PADDING + row * CELL_SIZE;
+            const radius = CELL_SIZE / 2 - 3; // 돌의 반지름 (셀 크기보다 약간 작게)
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+
+            if (color === 'black') {
+                ctx.fillStyle = '#000';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            } else { // white
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.strokeStyle = '#ccc';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        /**
+         * 게임 정보를 화면에 업데이트합니다.
+         */
+        function updateDisplay() {
+            currentPlayerDisplay.textContent = `현재: ${currentPlayer === 1 ? '흑' : '백'}`;
+            if (currentPlayer === 1) {
+                currentPlayerDisplay.classList.add('current-player');
+            } else {
+                currentPlayerDisplay.classList.remove('current-player');
+            }
+        }
+
+        /**
+         * 캔버스 클릭 이벤트를 처리하여 돌을 놓습니다. (인간 플레이어)
+         * @param {MouseEvent} event - 클릭 이벤트 객체.
+         */
+        function handleCanvasClick(event) {
+            if (gameOver || currentPlayer === 2) return; // 게임 종료 또는 AI 턴이면 무시
+
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // 클릭된 좌표를 가장 가까운 격자점으로 변환
+            const col = Math.round((x - BOARD_PADDING) / CELL_SIZE);
+            const row = Math.round((y - BOARD_PADDING) / CELL_SIZE);
+
+            // 보드 범위 내에 있는지 확인
+            if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
+                return;
+            }
+
+            // 유효한 수인지 확인하고 돌 놓기
+            if (tryPlaceStone(row, col, currentPlayer)) {
+                // 돌을 성공적으로 놓으면 승리 확인 후 AI 턴으로 전환
+                if (checkWin(row, col, currentPlayer)) {
+                    endGame(`${currentPlayer === 1 ? '흑' : '백'}`);
+                } else {
+                    switchPlayer();
+                    setTimeout(makeAIMove, AI_MOVE_DELAY); // AI 턴 딜레이
+                }
+            }
+        }
+
+        /**
+         * 돌을 놓으려는 시도를 처리합니다.
+         * @param {number} r - 행.
+         * @param {number} c - 열.
+         * @param {number} player - 돌을 놓을 플레이어 (1: 흑, 2: 백).
+         * @returns {boolean} - 돌을 성공적으로 놓았으면 true, 아니면 false.
+         */
+        function tryPlaceStone(r, c, player) {
+            if (board[r][c] !== 0) { // 이미 돌이 있는 경우
+                if (player === 1) { // 인간 플레이어에게만 메시지 표시
+                    gameStatusDisplay.textContent = '이미 돌이 있는 위치입니다!';
+                }
+                return false;
+            }
+
+            board[r][c] = player; // 돌 놓기
+            drawBoard(); // 보드 다시 그리기 (새 돌 표시)
+            return true; // 돌 놓기 성공
+        }
+
+        /**
+         * 특정 위치에서 특정 플레이어의 연속된 돌 개수와 열린 끝 개수를 계산합니다.
+         * 이 함수는 주어진 방향과 그 반대 방향을 모두 탐색하여 전체 라인 정보를 반환합니다.
+         * @param {number} r - 시작 행.
+         * @param {number} c - 시작 열.
+         * @param {number} dr - 행 방향 증분.
+         * @param {number} dc - 열 방향 증분.
+         * @param {number} player - 확인할 플레이어 (1: 흑, 2: 백).
+         * @param {Array<Array<number>>} currentBoard - 현재 보드 상태.
+         * @returns {{count: number, openEnds: number}} - 연속된 돌 개수와 열린 끝 개수.
+         */
+        function getPatternInfo(r, c, dr, dc, player, currentBoard) {
+            let count = 1; // 현재 돌 포함
+            let openEnds = 0;
+
+            // 양의 방향 탐색
+            let currR = r + dr;
+            let currC = c + dc;
+            while (currR >= 0 && currR < BOARD_SIZE && currC >= 0 && currC < BOARD_SIZE && currentBoard[currR][currC] === player) {
+                count++;
+                currR += dr;
+                currC += dc;
+            }
+            if (currR >= 0 && currR < BOARD_SIZE && currC >= 0 && currC < BOARD_SIZE && currentBoard[currR][currC] === 0) {
+                openEnds++; // 열린 끝 발견
+            }
+
+            // 음의 방향 탐색 (시작 돌은 이미 포함되었으므로 제외)
+            currR = r - dr;
+            currC = c - dc;
+            while (currR >= 0 && currR < BOARD_SIZE && currC >= 0 && currC < BOARD_SIZE && currentBoard[currR][currC] === player) {
+                count++;
+                currR -= dr;
+                currC -= dc;
+            }
+            if (currR >= 0 && currR < BOARD_SIZE && currC >= 0 && currC < BOARD_SIZE && currentBoard[currR][currC] === 0) {
+                openEnds++; // 열린 끝 발견
+            }
+
+            return { count, openEnds };
+        }
+
+        /**
+         * 특정 위치에 돌을 놓았을 때 얻을 수 있는 전략적 점수를 평가합니다.
+         * @param {number} r - 평가할 행.
+         * @param {number} c - 평가할 열.
+         * @param {number} player - 돌을 놓을 플레이어.
+         * @param {Array<Array<number>>} currentBoard - 현재 보드 상태.
+         * @returns {number} - 해당 수의 평가 점수.
+         */
+        function evaluateMoveScore(r, c, player, currentBoard) {
+            let score = 0;
+
+            // 중앙 선호도 추가
+            const centerR = Math.floor(BOARD_SIZE / 2);
+            const centerC = Math.floor(BOARD_SIZE / 2);
+            const distanceToCenter = Math.abs(r - centerR) + Math.abs(c - centerC);
+            // 중앙에서 멀어질수록 점수 감소
+            score += (BOARD_SIZE * 2 - distanceToCenter) * CENTER_BIAS;
+
+            for (const [dr, dc] of OMOK_DIRECTIONS) {
+                // 이 위치에 돌을 놓았을 때 형성되는 패턴을 평가
+                const { count, openEnds } = getPatternInfo(r, c, dr, dc, player, currentBoard);
+
+                if (count >= 5) {
+                    score += WIN_SCORE;
+                } else if (count === 4) {
+                    if (openEnds === 2) { // 열린 넷
+                        score += OPEN_FOUR_SCORE;
+                    } else if (openEnds === 1) { // 닫힌 넷
+                        score += CLOSED_FOUR_SCORE;
+                    }
+                } else if (count === 3) {
+                    if (openEnds === 2) { // 열린 셋
+                        score += OPEN_THREE_SCORE;
+                    } else if (openEnds === 1) { // 닫힌 셋
+                        score += CLOSED_THREE_SCORE;
+                    }
+                } else if (count === 2) {
+                    if (openEnds === 2) { // 열린 둘
+                        score += OPEN_TWO_SCORE;
+                    }
+                }
+            }
+            return score;
+        }
+
+
+        /**
+         * AI (백돌)가 수를 둡니다.
+         * AI는 정의된 우선순위에 따라 최적의 수를 찾습니다.
+         */
+        function makeAIMove() {
+            if (gameOver || currentPlayer !== 2) return;
+
+            gameStatusDisplay.textContent = '백돌이 생각 중...';
+
+            let bestMove = null;
+            let maxOverallScore = -Infinity; // 초기 점수를 음의 무한대로 설정
+
+            const opponent = currentPlayer === 1 ? 2 : 1;
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === 0) { // 빈 칸인 경우에만 고려
+                        let currentMoveOverallScore = 0;
+
+                        // 1. AI 자신의 공격 평가
+                        board[r][c] = currentPlayer; // 임시로 AI 돌 놓기
+                        const aiOffensiveScore = evaluateMoveScore(r, c, currentPlayer, board);
+                        board[r][c] = 0; // 돌 되돌리기
+
+                        // 2. 상대방의 위협 방어 평가
+                        board[r][c] = opponent; // 임시로 상대방 돌 놓기
+                        const opponentThreatScore = evaluateMoveScore(r, c, opponent, board);
+                        board[r][c] = 0; // 돌 되돌리기
+
+                        // AI가 이길 수 있는 수라면 최우선
+                        if (aiOffensiveScore >= WIN_SCORE) {
+                            bestMove = { row: r, col: c };
+                            maxOverallScore = WIN_SCORE; // 최고 점수 설정
+                            break; // 즉시 이길 수 있으므로 더 이상 탐색할 필요 없음
+                        }
+
+                        // 상대방이 이길 수 있는 수라면 막는 것을 최우선
+                        if (opponentThreatScore >= WIN_SCORE) {
+                            currentMoveOverallScore = BLOCK_WIN_SCORE;
+                        }
+                        // 상대방의 열린 넷 방어
+                        else if (opponentThreatScore >= OPEN_FOUR_SCORE) {
+                            currentMoveOverallScore = BLOCK_OPEN_FOUR_SCORE;
+                        }
+                        // 상대방의 열린 셋 방어
+                        else if (opponentThreatScore >= OPEN_THREE_SCORE) {
+                            currentMoveOverallScore = BLOCK_OPEN_THREE_SCORE;
+                        }
+                        // 자신의 공격 기회 (방어보다 낮은 우선순위)
+                        else {
+                            currentMoveOverallScore = aiOffensiveScore;
+                        }
+
+                        // 현재까지의 최고 점수와 비교
+                        if (currentMoveOverallScore > maxOverallScore) {
+                            maxOverallScore = currentMoveOverallScore;
+                            bestMove = { row: r, col: c };
+                        }
+                    }
+                }
+                if (bestMove && maxOverallScore >= WIN_SCORE) break; // 승리 수가 발견되면 즉시 종료
+            }
+
+            if (bestMove) {
+                setTimeout(() => {
+                    if (tryPlaceStone(bestMove.row, bestMove.col, currentPlayer)) {
+                        if (checkWin(bestMove.row, bestMove.col, currentPlayer)) {
+                            endGame(`${currentPlayer === 1 ? '흑' : '백'}`);
+                        } else {
+                            switchPlayer();
+                        }
+                    }
+                }, AI_MOVE_DELAY);
+            } else {
+                // 둘 곳이 없으면 기권 (매우 드물겠지만)
+                showCustomModal('백돌이 둘 곳이 없어 기권합니다. 흑돌 승리!', () => {
+                    endGame('흑');
+                });
+            }
+        }
+
+        /**
+         * 현재 플레이어를 전환합니다.
+         */
+        function switchPlayer() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            updateDisplay();
+            gameStatusDisplay.textContent = `${currentPlayer === 1 ? '흑' : '백'}의 차례입니다.`;
+        }
+
+        /**
+         * 돌을 놓은 후 승리 조건을 확인합니다.
+         * 오목은 5개 연속된 돌을 먼저 놓는 플레이어가 승리합니다.
+         * @param {number} r - 마지막으로 놓은 돌의 행.
+         * @param {number} c - 마지막으로 놓은 돌의 열.
+         * @param {number} player - 현재 플레이어 (1: 흑, 2: 백).
+         * @returns {boolean} - 승리 조건을 만족하면 true, 아니면 false.
+         */
+        function checkWin(r, c, player) {
+            // 8가지 방향 (수평, 수직, 대각선)을 확인합니다.
+            const directions = [
+                [0, 1],   // 수평 (오른쪽)
+                [1, 0],   // 수직 (아래)
+                [1, 1],   // 대각선 (오른쪽 아래)
+                [1, -1]   // 대각선 (왼쪽 아래)
+            ];
+
+            for (const [dr, dc] of directions) {
+                let count = 1; // 현재 놓은 돌 포함
+                // 양방향으로 탐색하여 연속된 돌의 개수를 셉니다.
+
+                // 한 방향
+                for (let i = 1; i < 5; i++) {
+                    const newR = r + dr * i;
+                    const newC = c + dc * i;
+                    if (newR >= 0 && newR < BOARD_SIZE && newC >= 0 && newC < BOARD_SIZE && board[newR][newC] === player) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+
+                // 반대 방향
+                for (let i = 1; i < 5; i++) {
+                    const newR = r - dr * i;
+                    const newC = c - dc * i;
+                    if (newR >= 0 && newR < BOARD_SIZE && newC >= 0 && newC < BOARD_SIZE && board[newR][newC] === player) {
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (count >= 5) {
+                    return true; // 5개 이상 연속된 돌 발견
+                }
+            }
+            return false;
+        }
+
+        /**
+         * 기권 버튼 클릭 이벤트를 처리합니다.
+         */
+        function handleResign() {
+            if (gameOver) return;
+
+            const winner = currentPlayer === 1 ? '백' : '흑'; // 기권한 플레이어의 상대방이 승리
+            showCustomModal(`${currentPlayer === 1 ? '흑' : '백'}이(가) 기권했습니다. ${winner} 승리!`, () => {
+                endGame(winner);
+            });
+        }
+
+        /**
+         * 게임을 종료하고 결과를 표시합니다.
+         * @param {string} winner - 승자 ('흑' 또는 '백').
+         */
+        function endGame(winner) {
+            gameOver = true;
+            const finalMessage = `게임 종료! ${winner} 승리!`;
+            showCustomModal(finalMessage, initializeGame); // 게임 종료 메시지 및 새 게임 시작 옵션
+        }
+
+        // 이벤트 리스너 추가
+        canvas.addEventListener('click', handleCanvasClick);
+        newGameButton.addEventListener('click', initializeGame);
+        resignButton.addEventListener('click', handleResign);
+
+        // 초기 게임 시작
+        initializeGame();
+    </script>
+</body>
+</html>
